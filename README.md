@@ -2,22 +2,19 @@
 
 # Product Comparisons
 
-**BuildingTransparency.org API**
-[IO Template: Nutrition-style Labels](/io/template/) - [Interactive Label Display](/profile/item/)  
+**BuildingTransparency.org API**  
+[IO Template: Nutrition-style Labels](/io/template/)  
+[Interactive Label Display](/profile/item/)  
 [State .csv files pulled from BuildingTransparency API](https://github.com/ModelEarth/products/tree/main/US)  
 [YAML-TO-JSON-TO-HTML parser](/io/template/parser/)  
 [BuildingTransparency Feed View (Static EPD json)](/feed/view/#feed=epd)  
-[Product Feed API](/io/template/feed) - [View product profiles in BuildingTransparency.org](https://buildingtransparency.org/ec3/epds/ec3mmgup)  
+[Product Feed API via Javascript](/io/template/feed)  
+[View product profiles in BuildingTransparency.org](https://buildingtransparency.org/ec3/epds/ec3mmgup)  
 <!-- Environmental Product Declarations (EPD) -->
 
 <!--[View as Markdown](/io/template/product/product-concrete.html)-->
 
-
- 
-
-
-TO CONTRIBUTE: [Fork](https://github.com/ModelEarth/MaterialScience) and run [MaterialScience](/MaterialScience) as a webroot on your computer.  
-Add your first name after the project you are working on below, send a PR and email Loren to pull.
+TO CONTRIBUTE: [Fork and run [MaterialScience](https://github.com/ModelEarth/MaterialScience)  as a webroot on your computer. Add your first name after the project you are working on below, send a PR and email Loren to pull. (With Claude Code CLI there may be alternative ways to appraoch the to-dos.)
 
 US/GA/GA.yaml was too big: 97.3 MB
 Avoid pushing files larger then 25 MB.
