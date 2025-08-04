@@ -14,7 +14,7 @@
 
 <!--[View as Markdown](/io/template/product/product-concrete.html)-->
 
-TO CONTRIBUTE: [Fork and run [MaterialScience](https://github.com/ModelEarth/MaterialScience)  as a webroot on your computer. Add your first name after the project you are working on below, send a PR and email Loren to pull. (With Claude Code CLI there may be alternative ways to appraoch the to-dos.)
+TO CONTRIBUTE: Fork and run [MaterialScience](https://github.com/ModelEarth/MaterialScience) as a webroot on your computer. Add your first name after the project you are working on below, send a PR and email Loren to pull. (With Claude Code CLI there may be alternative ways to appraoch the to-dos.)
 
 US/GA/GA.yaml was too big: 97.3 MB
 Avoid pushing files larger then 25 MB.
