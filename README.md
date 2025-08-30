@@ -5,7 +5,7 @@
 **BuildingTransparency.org API**  
 [IO Template: Nutrition-style Labels](/io/template/)  
 [Interactive Label Display](/profile/item/)  
-[State .csv files pulled from BuildingTransparency API](https://github.com/ModelEarth/products/tree/main/US)  
+[Products .csv files pulled from BuildingTransparency API](https://github.com/ModelEarth/products-data/)  
 [YAML-TO-JSON-TO-HTML parser](/io/template/parser/)  
 [BuildingTransparency Feed View (Static EPD json)](/feed/view/#feed=epd)  
 [Product Feed API via Javascript](/io/template/feed)  
