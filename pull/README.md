@@ -1,3 +1,3 @@
 About Script and Workflow
 
-Documentation at: [profile/products](http://model.earth/profile/products/)
+Documentation at: [model.earth/products/](http://model.earth/products/)

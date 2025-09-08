@@ -14,7 +14,7 @@
 
 <!--[View as Markdown](/io/template/product/product-concrete.html)-->
 
-TO CONTRIBUTE: Fork and run [webroot](https://github.com/ModelEarth/webroot) on your computer. Find an issue listed at [model.earth/projects](https://model.earth/projects) and post a reply to it with your work in progress and update your post when you've send a PR with the update.
+TO CONTRIBUTE: Fork and run [webroot](https://github.com/ModelEarth/webroot) on your computer. Find an issue listed at [model.earth/projects](https://model.earth/projects) and post a reply to it with your work in progress and update your post when you send a PR with the update.
 
 US/GA/GA.yaml was too big: 97.3 MB
 Avoid pushing files larger then 25 MB.
