@@ -86,7 +86,12 @@ def get_zipcode_from_epd(epd):
 
 # ✅ Output to products-data folder
 def create_folder_path(state, zipcode, display_name):
-    base_path = os.path.join("../../products-data", state)
+    base_root = os.path.join("../../products-data")
+    # For India, organize strictly by category under 'IN/<category>'
+    if state == 'IN':
+        return os.path.join(base_root, 'IN', display_name)
+    # Default (e.g., US states): organize by state and zipcode buckets
+    base_path = os.path.join(base_root, state)
     if zipcode and len(zipcode) >= 5:
         return os.path.join(base_path, zipcode[:2], zipcode[2:], display_name)
     else:
@@ -145,6 +150,77 @@ def write_epd_to_csv(epds: list, state: str):
     write_csv_cement(cement_list)
     write_csv_others(state, others_list)
 
+# Tariff highlights for India: feature specific categories and annotate tariff rates
+def write_tariff_highlights(raw_epds: list, state: str):
+    if state != 'IN' or not raw_epds:
+        # Ensure directory and empty CSV exist for downstream expectations
+        try:
+            os.makedirs(os.path.join("../../products-data", 'IN'), exist_ok=True)
+            out_path = os.path.join("../../products-data", 'IN', 'tariff_highlights.csv')
+            if not os.path.exists(out_path):
+                with open(out_path, 'w') as f:
+                    writer = csv.DictWriter(f, fieldnames=['Category','Name','ID','TariffPercent','Zip','Address','Latitude','Longitude'])
+                    writer.writeheader()
+        except Exception:
+            pass
+        return
+    try:
+        highlights = []
+        # Map keywords to tariff percentage - search in both category and product description
+        keyword_to_tariff = {
+            'kitchen cabinet': 50,
+            'kitchen cabinets': 50,
+            'bathroom vanity': 50,
+            'bathroom vanities': 50,
+            'upholstered furniture': 30,
+            'furniture': 30,  # Broader match for furniture
+            'tables': 30,     # Tables are furniture
+            'wardrobes': 30,  # Found in descriptions
+        }
+        for epd in raw_epds:
+            try:
+                category_info = epd.get('category', {}) if isinstance(epd, dict) else {}
+                display_name = (category_info.get('display_name') or '').strip()
+                product_name = (epd.get('name') or '').strip()
+                product_description = (epd.get('description') or '').strip()
+                
+                # Search in category name, product name, and description
+                search_text = f"{display_name} {product_name} {product_description}".lower()
+                
+                matched_tariff = None
+                matched_keyword = None
+                for kw, rate in keyword_to_tariff.items():
+                    if kw in search_text:
+                        matched_tariff = rate
+                        matched_keyword = kw
+                        break
+                
+                if matched_tariff is None:
+                    continue
+                    
+                plant = epd.get('plant_or_group', {}) if isinstance(epd, dict) else {}
+                highlights.append({
+                    'Category': f"{display_name} (matched: {matched_keyword})",
+                    'Name': product_name,
+                    'ID': epd.get('open_xpd_uuid', ''),
+                    'TariffPercent': matched_tariff,
+                    'Zip': plant.get('postal_code', ''),
+                    'Address': plant.get('address', ''),
+                    'Latitude': plant.get('latitude', ''),
+                    'Longitude': plant.get('longitude', ''),
+                })
+            except Exception:
+                continue
+        os.makedirs(os.path.join("../../products-data", 'IN'), exist_ok=True)
+        out_path = os.path.join("../../products-data", 'IN', 'tariff_highlights.csv')
+        with open(out_path, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=['Category','Name','ID','TariffPercent','Zip','Address','Latitude','Longitude'])
+            writer.writeheader()
+            for row in highlights:
+                writer.writerow(row)
+    except Exception:
+        pass
+
 # ✅ MAIN SCRIPT
 if __name__ == "__main__":
     authorization = get_auth()
@@ -153,5 +229,7 @@ if __name__ == "__main__":
             print(f"Fetching and processing: {state}")
             results = fetch_epds(state, authorization)
             save_json_to_yaml(state, results)
+            # Create a tariff highlights CSV for IN based on specified categories
+            write_tariff_highlights(results, state)
             mapped_results = [map_response(epd) for epd in results]
             write_epd_to_csv(mapped_results, state)
