@@ -2,22 +2,38 @@
 
 # Product Comparisons
 
+[See issue page on GitHub for additional details](https://github.com/ModelEarth/products/issues/1)
+
 **BuildingTransparency.org API**  
 1. [View product profiles in BuildingTransparency.org](https://buildingtransparency.org/ec3/epds/ec3mmgup)  
 Click "OpenEPD json" in the upper right on a product page. Pull the same via the API and save in [country]/[category] folders.
 
-2. Use Postman to test pulling details. Update csv list output with product emission impacts for all countries and states/territories by updating our [Python Profile pull](https://github.com/ModelEarth/products/tree/main/pull)<!-- product-footprints.py -->. View [Resulting Data](https://github.com/ModelEarth/products-data/) - coming soon.
+2. Update detail file output with product emission impacts for all countries and states/territories by updating our [Python Profile pull](https://github.com/ModelEarth/products/tree/main/pull)<!-- product-footprints.py -->. (Postman may be helpful for exploring API data structure.)
 
-[IO Template: Nutrition-style Labels](/io/template/)  
-[Interactive Label Display](/profile/item/)  
-[Products .csv files pulled from BuildingTransparency API](https://github.com/ModelEarth/products-data/)  
-[YAML-TO-JSON-TO-HTML parser](/io/template/parser/)  
-[BuildingTransparency Feed View (Static EPD json)](/feed/view/#feed=epd)  
-[Product Feed API via Javascript](/io/template/feed)  
+3. Send resulting data to a fork of [ModelEarth/products-data](https://github.com/ModelEarth/products-data/) - View a recent pull in [Sirisha's fork](https://github.com/Sirishaupadhyayula/products-data).
+
+**Our Product Menu Frontend**
+
+4. Send produdt detail files to our [Interactive Label Display](/profile/item/)  
+
+5. [IO Template: Nutrition-style Labels](/io/template/)  
+
+6. Update [Product Feed API pull via Javascript](/io/template/feed)  
+
+7. Add select menu to [YAML-TO-JSON-TO-HTML parser](/io/template/parser/)  
+
+8. Fix images on the [BuildingTransparency Feed View (Static EPD json)](/team/projects/#list=epd) 
+
+<!--
+8. Update the [BuildingTransparency Feed View (Static EPD json)](/feed/view/#feed=epd)  
+-->
+
 
 <!-- Environmental Product Declarations (EPD) -->
 
 <!--[View as Markdown](/io/template/product/product-concrete.html)-->
+
+## Getting Started
 
 TO CONTRIBUTE: Fork and run [webroot](https://github.com/ModelEarth/webroot) on your computer. Find an issue listed at [model.earth/projects](https://model.earth/projects) and post a reply to it with your work in progress and update your post when you send a PR with the update.
 
