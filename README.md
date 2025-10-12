@@ -3,13 +3,18 @@
 # Product Comparisons
 
 **BuildingTransparency.org API**  
+1. [View product profiles in BuildingTransparency.org](https://buildingtransparency.org/ec3/epds/ec3mmgup)  
+Click "OpenEPD json" in the upper right on a product page. Pull the same via the API and save in [country]/[category] folders.
+
+2. Use Postman to test pulling details. Update csv list output with product emission impacts for all countries and states/territories by updating our [Python Profile pull](https://github.com/ModelEarth/products/tree/main/pull)<!-- product-footprints.py -->. View [Resulting Data](https://github.com/ModelEarth/products-data/) - coming soon.
+
 [IO Template: Nutrition-style Labels](/io/template/)  
 [Interactive Label Display](/profile/item/)  
 [Products .csv files pulled from BuildingTransparency API](https://github.com/ModelEarth/products-data/)  
 [YAML-TO-JSON-TO-HTML parser](/io/template/parser/)  
 [BuildingTransparency Feed View (Static EPD json)](/feed/view/#feed=epd)  
 [Product Feed API via Javascript](/io/template/feed)  
-[View product profiles in BuildingTransparency.org](https://buildingtransparency.org/ec3/epds/ec3mmgup)  
+
 <!-- Environmental Product Declarations (EPD) -->
 
 <!--[View as Markdown](/io/template/product/product-concrete.html)-->
@@ -25,7 +30,7 @@ TO DO: product-footprints.py and update\_csv\_and\_yaml.py are very similar. Add
 
 TO DO: Send the cement product rows to their own files in new state folders in profile/cement/US. Save the cement listings within the same process that saves non-cement for states. (Avoid loading and process the CSV file containing all states.)
 
-TO DO: Use Postman to test pulling CO2 for products. Update csv list output with product emission impacts for all states by updating our [Python Profile pull](https://github.com/ModelEarth/profile/tree/main/products/pull/)<!-- product-footprints.py -->. View [Resulting Data](https://github.com/ModelEarth/profile/tree/main/products/US).
+
 
 TO DO: Save emissions info within our indvidual YAML files. Include all the impact (emmissions, etc) in each profile. Login to BuildingTransparency.org to view a [detail sample](https://buildingtransparency.org/ec3/epds/ec3mmgup).  Update our notes with your findings and progress. You can use Postman or another app to explore the BuildingTransparency APIs.
 
