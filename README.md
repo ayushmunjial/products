@@ -28,7 +28,6 @@ Click "OpenEPD json" in the upper right on a product page. Pull the same via the
 8. Update the [BuildingTransparency Feed View (Static EPD json)](/feed/view/#feed=epd)  
 -->
 
-
 <!-- Environmental Product Declarations (EPD) -->
 
 <!--[View as Markdown](/io/template/product/product-concrete.html)-->
@@ -42,11 +41,9 @@ Avoid pushing files larger then 25 MB.
 
 TO DO: The token expires every 72 hours, so switch our ["Update Data" GitHub Action](https://github.com/ModelEarth/profile/actions) to use an email and password as the secrets which generate the token. (Look at how we use a myconfig file locally to get a new token and create a similar process in the GitHub Action.) Test in a fork and document steps for adding the secrets here. The URL for the API may need to be updated to https://buildingtransparency.org/api/epds
 
-TO DO: product-footprints.py and update\_csv\_and\_yaml.py are very similar. Add "-DELETE" to the name of one (as long as we can use the other file two ways: locally and with the GitHub Action workflow). If retaining update_csv_and_yaml.py, change underscores to dashes. -- Done [update_csv_and_yaml renamed with -DELETE, product-footprints kept as primary]
+DONE: product-footprints.py and update\_csv\_and\_yaml.py are very similar. Add "-DELETE" to the name of one (as long as we can use the other file two ways: locally and with the GitHub Action workflow). If retaining update_csv_and_yaml.py, change underscores to dashes.
 
-TO DO: Send the cement product rows to their own files in new state folders in profile/cement/US. Save the cement listings within the same process that saves non-cement for states. (Avoid loading and process the CSV file containing all states.)
-
-
+DONE: Send the cement product rows to their own files in new state folders in profile/cement/US. Save the cement listings within the same process that saves non-cement for states. (Avoid loading and process the CSV file containing all states.)
 
 TO DO: Save emissions info within our indvidual YAML files. Include all the impact (emmissions, etc) in each profile. Login to BuildingTransparency.org to view a [detail sample](https://buildingtransparency.org/ec3/epds/ec3mmgup).  Update our notes with your findings and progress. You can use Postman or another app to explore the BuildingTransparency APIs.
 
@@ -86,8 +83,6 @@ Run the following in the root of the Profile repo. Takes over 30 minutes.
 <!-- Resolved by changing endpoint
 Current Error: Max retries exceeded with url: /api/rest-auth/login (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x104c69c70>, 'Connection to etl-api.cqd.io timed out. (connect timeout=None)'))
 -->
-
-
 
 <!--
 June 3, 2024 - We copied [product-footprints.py](https://github.com/ModelEarth/profile/tree/main/products/pull/) into [Product Footprints Colab](https://colab.research.google.com/drive/1TJ1fn0-_8EBryN3ih5hZiKLISomOrWDW?usp=sharing) (We haven't run as CoLab yet.)
@@ -178,5 +173,3 @@ BuildingTransparency OpenEPD API
 
 
 Inside Postman, you can load the swagger.yaml file [exported from Swagger](https://stackoverflow.com/questions/48525546/how-to-export-swagger-json-or-yaml) which will import the schemas into Postman.
-
-
