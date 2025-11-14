@@ -90,12 +90,12 @@ def create_folder_path(state, zipcode, display_name):
     # For India, organize strictly by category under 'IN/<category>'
     if state == 'IN':
         return os.path.join(base_root, 'IN', display_name)
-    # Default (e.g., US states): organize by state and zipcode buckets
-    base_path = os.path.join(base_root, state)
-    if zipcode and len(zipcode) >= 5:
-        return os.path.join(base_path, zipcode[:2], zipcode[2:], display_name)
-    else:
-        return os.path.join(base_path, "unknown", display_name)
+    # For US states: organize by country and category (e.g., US/Cement, US/Brick)
+    # Products might come from multiple states, so use category-based folders
+    if state.startswith('US-'):
+        return os.path.join(base_root, 'US', display_name)
+    # Default fallback
+    return os.path.join(base_root, state, display_name)
 
 def save_json_to_yaml(state: str, json_data: list):
     filtered_data = remove_null_values(json_data)
@@ -150,22 +150,22 @@ def write_epd_to_csv(epds: list, state: str):
     write_csv_cement(cement_list)
     write_csv_others(state, others_list)
 
-# Tariff highlights for India: feature specific categories and annotate tariff rates
-def write_tariff_highlights(raw_epds: list, state: str):
+# Products CSV for India: maps region1 (IN) to region2 (US) with category_id and tariff_percent
+def write_products_csv(raw_epds: list, state: str):
     if state != 'IN' or not raw_epds:
         # Ensure directory and empty CSV exist for downstream expectations
         try:
             os.makedirs(os.path.join("../../products-data", 'IN'), exist_ok=True)
-            out_path = os.path.join("../../products-data", 'IN', 'tariff_highlights.csv')
+            out_path = os.path.join("../../products-data", 'IN', 'products.csv')
             if not os.path.exists(out_path):
                 with open(out_path, 'w') as f:
-                    writer = csv.DictWriter(f, fieldnames=['Category','Name','ID','TariffPercent','Zip','Address','Latitude','Longitude'])
+                    writer = csv.DictWriter(f, fieldnames=['region1', 'region2', 'category_id', 'tariff_percent'])
                     writer.writeheader()
         except Exception:
             pass
         return
     try:
-        highlights = []
+        products = []
         # Map keywords to tariff percentage - search in both category and product description
         keyword_to_tariff = {
             'kitchen cabinet': 50,
@@ -184,39 +184,36 @@ def write_tariff_highlights(raw_epds: list, state: str):
                 product_name = (epd.get('name') or '').strip()
                 product_description = (epd.get('description') or '').strip()
                 
+                # Get category_id from category.id (to match EPD naming)
+                category_id = category_info.get('id', '')
+                
                 # Search in category name, product name, and description
                 search_text = f"{display_name} {product_name} {product_description}".lower()
                 
                 matched_tariff = None
-                matched_keyword = None
                 for kw, rate in keyword_to_tariff.items():
                     if kw in search_text:
                         matched_tariff = rate
-                        matched_keyword = kw
                         break
                 
                 if matched_tariff is None:
                     continue
                     
-                plant = epd.get('plant_or_group', {}) if isinstance(epd, dict) else {}
-                highlights.append({
-                    'Category': f"{display_name} (matched: {matched_keyword})",
-                    'Name': product_name,
-                    'ID': epd.get('open_xpd_uuid', ''),
-                    'TariffPercent': matched_tariff,
-                    'Zip': plant.get('postal_code', ''),
-                    'Address': plant.get('address', ''),
-                    'Latitude': plant.get('latitude', ''),
-                    'Longitude': plant.get('longitude', ''),
+                # Create product entry with new structure
+                products.append({
+                    'region1': 'IN',  # India
+                    'region2': 'US',  # Placeholder - actual US state mapping TBD
+                    'category_id': category_id,
+                    'tariff_percent': matched_tariff,
                 })
             except Exception:
                 continue
         os.makedirs(os.path.join("../../products-data", 'IN'), exist_ok=True)
-        out_path = os.path.join("../../products-data", 'IN', 'tariff_highlights.csv')
+        out_path = os.path.join("../../products-data", 'IN', 'products.csv')
         with open(out_path, 'w') as f:
-            writer = csv.DictWriter(f, fieldnames=['Category','Name','ID','TariffPercent','Zip','Address','Latitude','Longitude'])
+            writer = csv.DictWriter(f, fieldnames=['region1', 'region2', 'category_id', 'tariff_percent'])
             writer.writeheader()
-            for row in highlights:
+            for row in products:
                 writer.writerow(row)
     except Exception:
         pass
@@ -229,7 +226,7 @@ if __name__ == "__main__":
             print(f"Fetching and processing: {state}")
             results = fetch_epds(state, authorization)
             save_json_to_yaml(state, results)
-            # Create a tariff highlights CSV for IN based on specified categories
-            write_tariff_highlights(results, state)
+            # Create products CSV for IN with region mapping and tariff rates
+            write_products_csv(results, state)
             mapped_results = [map_response(epd) for epd in results]
             write_epd_to_csv(mapped_results, state)
