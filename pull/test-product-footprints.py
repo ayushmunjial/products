@@ -1,30 +1,21 @@
-import requests, json, csv, logging, yaml, time, os
+"""
+Test script for product-footprints.py
+Tests with a small subset of regions before running the full script.
+"""
+import requests, json, csv, logging, multiprocessing, yaml, time, os
 from functools import partial
 from myconfig import email, password
 
-# ✅ Pull for all US states and selected countries
-# All US states (50 states + DC)
-us_states = [
-    'US-AL', 'US-AK', 'US-AZ', 'US-AR', 'US-CA', 'US-CO', 'US-CT', 'US-DE', 'US-FL', 'US-GA',
-    'US-HI', 'US-ID', 'US-IL', 'US-IN', 'US-IA', 'US-KS', 'US-KY', 'US-LA', 'US-ME', 'US-MD',
-    'US-MA', 'US-MI', 'US-MN', 'US-MS', 'US-MO', 'US-MT', 'US-NE', 'US-NV', 'US-NH', 'US-NJ',
-    'US-NM', 'US-NY', 'US-NC', 'US-ND', 'US-OH', 'US-OK', 'US-OR', 'US-PA', 'US-RI', 'US-SC',
-    'US-SD', 'US-TN', 'US-TX', 'US-UT', 'US-VT', 'US-VA', 'US-WA', 'US-WV', 'US-WI', 'US-WY',
-    'US-DC'
-]
-
-# Additional countries
-countries = ['IN', 'GB', 'DE', 'NL', 'CA', 'MX', 'CN']
-
-# Combine all regions
-states = us_states + countries
+# ✅ TEST: Use only a few regions for quick testing
+# Test with: US-ME (known to have data), US-CA (large state), IN (India), GB (Great Britain)
+states = ['US-ME', 'US-CA', 'IN', 'GB']
 
 epds_url = "https://buildingtransparency.org/api/epds"
 page_size = 250
 
 logging.basicConfig(
     level=logging.DEBUG,
-    filename="output.log",
+    filename="test_output.log",
     datefmt="%Y/%m/%d %H:%M:%S",
     format="%(asctime)s - %(name)s - %(levelname)s - %(lineno)d - %(module)s - %(message)s",
 )
@@ -47,7 +38,7 @@ def get_auth():
     response_auth = requests.post(url_auth, headers=headers_auth, json=payload_auth)
     if response_auth.status_code == 200:
         authorization = 'Bearer ' + response_auth.json()['key']
-        print("Fetched the new token successfully", flush=True)
+        print("Fetched the new token successfully")
         return authorization
     else:
         print(f"Failed to login. Status code: {response_auth.status_code}")
@@ -65,7 +56,7 @@ def fetch_a_page(page: int, headers, state: str, total_pages: int = 0) -> list:
                 data = json.loads(response.text)
                 # Show progress for large datasets
                 if total_pages > 10 and page % 10 == 0:
-                    print(f"  Progress: {page}/{total_pages} pages fetched for {state}", flush=True)
+                    print(f"  Progress: {page}/{total_pages} pages fetched for {state}")
                 return data
             elif response.status_code == 429:
                 log_error(response.status_code, "Rate limit exceeded. Retrying...")
@@ -84,26 +75,17 @@ def fetch_a_page(page: int, headers, state: str, total_pages: int = 0) -> list:
 def fetch_epds(state: str, authorization) -> list:
     params = {"plant_geography": state, "page_size": page_size}
     headers = {"accept": "application/json", "Authorization": authorization}
-    try:
-        # Add timeout to initial request
-        response = requests.get(epds_url, headers=headers, params=params, timeout=30)
-    except requests.exceptions.Timeout:
-        print(f"Timeout fetching initial data for {state}. Skipping...", flush=True)
-        return []
-    except requests.exceptions.RequestException as e:
-        print(f"Request error for {state}: {str(e)}. Skipping...", flush=True)
-        return []
-    
+    response = requests.get(epds_url, headers=headers, params=params)
     if response.status_code != 200:
         log_error(response.status_code, str(response.json()))
-        print(f"No data found for {state} (status: {response.status_code})", flush=True)
+        print(f"No data found for {state} (status: {response.status_code})")
         return []
     # Handle case where X-Total-Pages header might be missing
     total_pages = int(response.headers.get('X-Total-Pages', 0))
     if total_pages == 0:
-        print(f"No data found for {state}", flush=True)
+        print(f"No data found for {state}")
         return []
-    print(f"Found {total_pages} pages for {state}", flush=True)
+    print(f"Found {total_pages} pages for {state}")
     full_response = []
     start_time = time.time()
     for page in range(1, total_pages + 1):
@@ -111,13 +93,13 @@ def fetch_epds(state: str, authorization) -> list:
         if page_data:
             full_response.extend(page_data)
         else:
-            print(f"  Warning: No data returned for page {page}, continuing...", flush=True)
+            print(f"  Warning: No data returned for page {page}, continuing...")
         # Only sleep if not the last page
         if page < total_pages:
             time.sleep(1)
     elapsed_time = time.time() - start_time
     time.sleep(10)
-    print(f"Fetched {len(full_response)} EPDs for {state} in {elapsed_time:.1f} seconds", flush=True)
+    print(f"Fetched {len(full_response)} EPDs for {state} in {elapsed_time:.1f} seconds")
     return full_response
 
 def remove_null_values(data):
@@ -177,66 +159,11 @@ def write_csv_others(title: str, epds: list):
             writer.writerow([epd['Name'], epd['ID'], epd['Zip'], epd['County'], epd['Address'], epd['Latitude'], epd['Longitude']])
 
 def write_csv_cement(epds: list):
-    """Write cement rows. Instead of a single central CSV, write per-state cement CSVs and
-    save individual cement YAML files under profile/cement/US/<state>/. 
-
-    epds: list of mapped epd dicts (output from map_response)
-    """
-    # Ensure base folders exist
     os.makedirs("../../products-data", exist_ok=True)
-    profile_cement_base = os.path.join("..", "..", "profile", "cement", "US")
-    os.makedirs(profile_cement_base, exist_ok=True)
-
-    # Group by state (Zip field may be partial or None) - expect the caller to pass state separately
-    # To support the existing call signature, if epds includes a 'State' key use that; otherwise
-    # default to 'unknown'. However, product-footprints passes mapped epds and state separately
-    # so higher-level caller will call write_cement_state_files per-state.
-    # Here we provide a fallback append to central Cement.csv for unexpected calls.
-    if not epds:
-        return
-
-    # Fallback: if a pseudo 'State' key exists on first epd, use it to write a per-state CSV
-    first = epds[0]
-    state = first.get('State') or first.get('Plant_State') or 'unknown'
-
-    # Write per-state cement CSV in products-data and in profile/cement/US/<state>/Cement.csv
-    state_products_data_dir = os.path.join("../../products-data", state)
-    os.makedirs(state_products_data_dir, exist_ok=True)
-    state_profile_dir = os.path.join(profile_cement_base, state)
-    os.makedirs(state_profile_dir, exist_ok=True)
-
-    products_data_csv = os.path.join(state_products_data_dir, 'Cement.csv')
-    profile_cement_csv = os.path.join(state_profile_dir, 'Cement.csv')
-
-    # Append rows to both CSV locations
-    for csv_path in (products_data_csv, profile_cement_csv):
-        write_header = not os.path.exists(csv_path)
-        with open(csv_path, 'a') as csv_file:
-            writer = csv.writer(csv_file)
-            if write_header:
-                writer.writerow(["Name", "ID", "Zip", "County", "Address", "Latitude", "Longitude"])
-            for epd in epds:
-                writer.writerow([epd.get('Name',''), epd.get('ID',''), epd.get('Zip',''), epd.get('County',''), epd.get('Address',''), epd.get('Latitude',''), epd.get('Longitude','')])
-
-    # Save individual YAMLs for each cement product under profile/cement/US/<state>/<material_id>.yaml
-    try:
-        # We need the original epd structured data to write YAML files. If caller passed mapped dicts only,
-        # we cannot dump full EPD; in that case skip YAML save. We detect full EPD by presence of 'Category_epd_name'.
-        # However our mapped epds are simple; product-footprints has access to full EPDs when calling save_json_to_yaml.
-        # To keep behavior safe, attempt to write minimal YAML with available fields.
+    with open("../../products-data/Cement.csv", "a") as csv_file:
+        writer = csv.writer(csv_file)
         for epd in epds:
-            mat_id = epd.get('ID') or epd.get('material_id')
-            if not mat_id:
-                continue
-            yaml_path = os.path.join(state_profile_dir, f"{mat_id}.yaml")
-            # Only write if not present to avoid overwriting existing full data
-            if not os.path.exists(yaml_path):
-                with open(yaml_path, 'w') as yf:
-                    # Dump the mapped dict as YAML (minimal)
-                    yaml.dump(epd, yf, default_flow_style=False)
-    except Exception:
-        # Do not fail the entire process for YAML write issues
-        pass
+            writer.writerow([epd['Name'], epd['ID'], epd['Zip'], epd['County'], epd['Address'], epd['Latitude'], epd['Longitude']])
 
 def write_epd_to_csv(epds: list, state: str):
     cement_list = []
@@ -246,14 +173,10 @@ def write_epd_to_csv(epds: list, state: str):
             continue
         category_name = epd['Category_epd_name'].lower()
         if 'cement' in category_name:
-            # tag with state for downstream per-state cement handling
-            epd['State'] = state
             cement_list.append(epd)
         else:
             others_list.append(epd)
-    # Write cement rows to per-state cement folders and CSVs
     write_csv_cement(cement_list)
-    # Non-cement products remain written per-state under products-data
     write_csv_others(state, others_list)
 
 # Products CSV for India: maps region1 (IN) to region2 (US) with category_id and tariff_percent
@@ -324,14 +247,18 @@ def write_products_csv(raw_epds: list, state: str):
     except Exception:
         pass
 
-# ✅ MAIN SCRIPT
+# ✅ TEST SCRIPT MAIN
 if __name__ == "__main__":
+    print("=" * 60)
+    print("TEST MODE: Running with limited regions")
+    print(f"Testing regions: {states}")
+    print("=" * 60)
+    
     authorization = get_auth()
     if authorization:
         total_regions = len(states)
-        print(f"Starting processing of {total_regions} regions...", flush=True)
         for idx, state in enumerate(states, 1):
-            print(f"\n[{idx}/{total_regions}] Fetching and processing: {state}", flush=True)
+            print(f"\n[{idx}/{total_regions}] Fetching and processing: {state}")
             results = fetch_epds(state, authorization)
             if results:
                 save_json_to_yaml(state, results)
@@ -339,7 +266,11 @@ if __name__ == "__main__":
                 write_products_csv(results, state)
                 mapped_results = [map_response(epd) for epd in results]
                 write_epd_to_csv(mapped_results, state)
-                print(f"✓ Completed {state}: {len(results)} EPDs saved", flush=True)
+                print(f"✓ Completed {state}: {len(results)} EPDs saved")
             else:
-                print(f"⚠ Skipped {state}: No data available", flush=True)
-        print(f"\n✓ All regions processed!", flush=True)
+                print(f"⚠ Skipped {state}: No data available")
+        print(f"\n✓ All test regions processed!")
+        print("\nNext step: Check the output in products-data/ folder")
+    else:
+        print("Failed to authenticate. Please check credentials in myconfig.py")
+
