@@ -1,31 +1,21 @@
+"""
+Test script for product-footprints.py
+Tests with a small subset of regions before running the full script.
+"""
 import requests, json, csv, logging, multiprocessing, yaml, time, os
-import sys
 from functools import partial
 from myconfig import email, password
 
-# ✅ Pull for all US states and selected countries
-# All US states (50 states + DC)
-us_states = [
-    'US-AL', 'US-AK', 'US-AZ', 'US-AR', 'US-CA', 'US-CO', 'US-CT', 'US-DE', 'US-FL', 'US-GA',
-    'US-HI', 'US-ID', 'US-IL', 'US-IN', 'US-IA', 'US-KS', 'US-KY', 'US-LA', 'US-ME', 'US-MD',
-    'US-MA', 'US-MI', 'US-MN', 'US-MS', 'US-MO', 'US-MT', 'US-NE', 'US-NV', 'US-NH', 'US-NJ',
-    'US-NM', 'US-NY', 'US-NC', 'US-ND', 'US-OH', 'US-OK', 'US-OR', 'US-PA', 'US-RI', 'US-SC',
-    'US-SD', 'US-TN', 'US-TX', 'US-UT', 'US-VT', 'US-VA', 'US-WA', 'US-WV', 'US-WI', 'US-WY',
-    'US-DC'
-]
-
-# Additional countries
-countries = ['IN', 'GB', 'DE', 'NL', 'CA', 'MX', 'CN']
-
-# Combine all regions
-states = us_states + countries
+# ✅ TEST: Use only a few regions for quick testing
+# Test with: US-ME (known to have data), US-CA (large state), IN (India), GB (Great Britain)
+states = ['US-ME', 'US-CA', 'IN', 'GB']
 
 epds_url = "https://buildingtransparency.org/api/epds"
 page_size = 250
 
 logging.basicConfig(
     level=logging.DEBUG,
-    filename="output.log",
+    filename="test_output.log",
     datefmt="%Y/%m/%d %H:%M:%S",
     format="%(asctime)s - %(name)s - %(levelname)s - %(lineno)d - %(module)s - %(message)s",
 )
@@ -48,7 +38,7 @@ def get_auth():
     response_auth = requests.post(url_auth, headers=headers_auth, json=payload_auth)
     if response_auth.status_code == 200:
         authorization = 'Bearer ' + response_auth.json()['key']
-        print("Fetched the new token successfully", flush=True)
+        print("Fetched the new token successfully")
         return authorization
     else:
         print(f"Failed to login. Status code: {response_auth.status_code}")
@@ -66,7 +56,7 @@ def fetch_a_page(page: int, headers, state: str, total_pages: int = 0) -> list:
                 data = json.loads(response.text)
                 # Show progress for large datasets
                 if total_pages > 10 and page % 10 == 0:
-                    print(f"  Progress: {page}/{total_pages} pages fetched for {state}", flush=True)
+                    print(f"  Progress: {page}/{total_pages} pages fetched for {state}")
                 return data
             elif response.status_code == 429:
                 log_error(response.status_code, "Rate limit exceeded. Retrying...")
@@ -85,26 +75,17 @@ def fetch_a_page(page: int, headers, state: str, total_pages: int = 0) -> list:
 def fetch_epds(state: str, authorization) -> list:
     params = {"plant_geography": state, "page_size": page_size}
     headers = {"accept": "application/json", "Authorization": authorization}
-    try:
-        # Add timeout to initial request
-        response = requests.get(epds_url, headers=headers, params=params, timeout=30)
-    except requests.exceptions.Timeout:
-        print(f"Timeout fetching initial data for {state}. Skipping...", flush=True)
-        return []
-    except requests.exceptions.RequestException as e:
-        print(f"Request error for {state}: {str(e)}. Skipping...", flush=True)
-        return []
-    
+    response = requests.get(epds_url, headers=headers, params=params)
     if response.status_code != 200:
         log_error(response.status_code, str(response.json()))
-        print(f"No data found for {state} (status: {response.status_code})", flush=True)
+        print(f"No data found for {state} (status: {response.status_code})")
         return []
     # Handle case where X-Total-Pages header might be missing
     total_pages = int(response.headers.get('X-Total-Pages', 0))
     if total_pages == 0:
-        print(f"No data found for {state}", flush=True)
+        print(f"No data found for {state}")
         return []
-    print(f"Found {total_pages} pages for {state}", flush=True)
+    print(f"Found {total_pages} pages for {state}")
     full_response = []
     start_time = time.time()
     for page in range(1, total_pages + 1):
@@ -112,13 +93,13 @@ def fetch_epds(state: str, authorization) -> list:
         if page_data:
             full_response.extend(page_data)
         else:
-            print(f"  Warning: No data returned for page {page}, continuing...", flush=True)
+            print(f"  Warning: No data returned for page {page}, continuing...")
         # Only sleep if not the last page
         if page < total_pages:
             time.sleep(1)
     elapsed_time = time.time() - start_time
     time.sleep(10)
-    print(f"Fetched {len(full_response)} EPDs for {state} in {elapsed_time:.1f} seconds", flush=True)
+    print(f"Fetched {len(full_response)} EPDs for {state} in {elapsed_time:.1f} seconds")
     return full_response
 
 def remove_null_values(data):
@@ -266,14 +247,18 @@ def write_products_csv(raw_epds: list, state: str):
     except Exception:
         pass
 
-# ✅ MAIN SCRIPT
+# ✅ TEST SCRIPT MAIN
 if __name__ == "__main__":
+    print("=" * 60)
+    print("TEST MODE: Running with limited regions")
+    print(f"Testing regions: {states}")
+    print("=" * 60)
+    
     authorization = get_auth()
     if authorization:
         total_regions = len(states)
-        print(f"Starting processing of {total_regions} regions...", flush=True)
         for idx, state in enumerate(states, 1):
-            print(f"\n[{idx}/{total_regions}] Fetching and processing: {state}", flush=True)
+            print(f"\n[{idx}/{total_regions}] Fetching and processing: {state}")
             results = fetch_epds(state, authorization)
             if results:
                 save_json_to_yaml(state, results)
@@ -281,7 +266,11 @@ if __name__ == "__main__":
                 write_products_csv(results, state)
                 mapped_results = [map_response(epd) for epd in results]
                 write_epd_to_csv(mapped_results, state)
-                print(f"✓ Completed {state}: {len(results)} EPDs saved", flush=True)
+                print(f"✓ Completed {state}: {len(results)} EPDs saved")
             else:
-                print(f"⚠ Skipped {state}: No data available", flush=True)
-        print(f"\n✓ All regions processed!", flush=True)
+                print(f"⚠ Skipped {state}: No data available")
+        print(f"\n✓ All test regions processed!")
+        print("\nNext step: Check the output in products-data/ folder")
+    else:
+        print("Failed to authenticate. Please check credentials in myconfig.py")
+
