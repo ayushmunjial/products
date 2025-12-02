@@ -1,6 +1,135 @@
 [Profile Tools](../profile) and [IO Template](../io/template)
 
-# Product Comparisons
+
+TO DO: We're creating a cool UX for viewing and comparing [menus of product impacts](../profile/item/menu.html).  
+Here's an upcoming [product profile](../profile/item/index.html#layout=product). (Change to use this [raw yaml path for Accostic Ceilings](https://raw.githubusercontent.com/ModelEarth/products-data/refs/heads/main/US/Acoustical_Ceilings/61a3d3f6469b4e9baa9da7605650a63d.yaml).)
+
+[Getting Started](#start) as a code contributor
+
+# Environmental Product Data
+
+## YAML File Structure
+The YAML details in the [products-data repo](https://github.com/modelearth/products-data/) contain CO2e impact data for building products pulled from BuildingTransparency.org. Each file represents a specific product's Environmental Product Declaration (EPD) with lifecycle assessment data.
+
+**Most interesting:** the gwp_z parameter compares to category average.
+
+
+### Global Warming Potential (GWP)
+The primary emission metric tracked is carbon footprint, measured in kgCO2e:
+
+### Category Identifiers
+Each product belongs to a category with unique identifiers.
+The category.id UUID is the most reliable. We organize by category.name for ease of use.
+
+- **category.name**: Machine-readable name (e.g., "AcousticalCeilings")
+- **category.display_name**: User-friendly display name (e.g., "Acoustical Ceilings")
+- **category.openepd**: Hierarchical classification in OpenEPD system (e.g., "Finishes >> CeilingPanel >> AcousticalCeilings")
+- **category.masterformat**: MasterFormat classification code (e.g., "09 51 00 Acoustical Ceilings")
+- **category.unspsc**: United Nations Standard Products and Services Code
+- **category.id**: Primary unique identifier (UUID format) - most reliable for referencing
+
+
+#### Product-Specific Values
+- **gwp**: Total GWP for the declared unit (e.g., 1000 sf, 1 m³)
+- **gwp_per_category_declared_unit**: GWP normalized to the category's standard declared unit (typically 1 m²)
+- **gwp_per_kg**: GWP per kilogram of product
+
+#### Category Percentiles
+Industry benchmarks showing the distribution of emissions across all products in the category:
+- **pct10_gwp**: 10th percentile - lowest 10% of products
+- **pct20_gwp**: 20th percentile
+- **pct30_gwp**: 30th percentile
+- **pct40_gwp**: 40th percentile
+- **pct50_gwp**: 50th percentile (median value)
+- **pct60_gwp**: 60th percentile
+- **pct70_gwp**: 70th percentile
+- **pct80_gwp**: 80th percentile
+- **pct90_gwp**: 90th percentile - 90% of products fall below this level
+
+### Statistical Values
+- **best_practice**: Best-case emission scenario (lowest plausible GWP)
+- **conservative_estimate**: Worst-case emission scenario (highest plausible GWP)
+- **lowest_plausible_gwp**: Minimum feasible GWP value
+- **uncertainty_adjusted_gwp**: GWP adjusted for data uncertainty
+- **standard_deviation**: Measure of variability in the data
+- **uncertainty_factor**: Multiplier used to adjust for data uncertainty
+- **gwp_z**: Z-score showing how this product's GWP compares to category average
+
+### Carbon Storage
+- **biogenic_embodied_carbon_z**: Z-score for biogenic carbon content
+- **stored_carbon_z**: Z-score for long-term carbon storage potential
+- **use_stored_carbon**: Boolean indicating whether stored carbon is included in calculations
+
+## Transportation Impacts
+
+**Important:** EPD GWP values represent **A1-A3 stages only** (cradle-to-gate):
+- **A1**: Raw material extraction and processing
+- **A2**: Transportation of raw materials TO the manufacturing facility (included in gwp)
+- **A3**: Manufacturing at the facility
+
+**Transportation to the construction site (A4) is typically NOT included** in the reported `gwp` value because manufacturers don't know where products will be installed.
+
+Category-level transportation assumptions:
+- **category.default_distance**: Default transportation distance in kilometers for A4 stage (factory to construction site) - used in lifecycle assessment calculations when actual shipping distances are unknown
+- **category.default_transport_mode**: Assumed method of transportation (e.g., "truck, unspecified")
+
+### Adjusting for Actual Transportation Distance
+
+To calculate the environmental impact when purchasing products at a different distance from the manufacturing location:
+
+**Transportation Emission Formula:**
+```
+Transportation Impact (kgCO2e) = Distance (km) × Load (kg) × Emission Factor (kgCO2e/ton-km) ÷ 1000
+
+Where:
+- Distance = Actual distance from manufacturing to construction site (km)
+- Load = mass_per_declared_unit (kg) - found in the product YAML
+- Emission Factor (truck) ≈ 0.062 kgCO2e/ton-km (typical for diesel truck)
+```
+
+**Adjusted Total GWP:**
+```
+Adjusted GWP = gwp + (Actual Transportation Impact - Default Transportation Impact)
+
+Where:
+- Default Transportation Impact = category.default_distance × mass_per_declared_unit × 0.062 ÷ 1000
+- Actual Transportation Impact = Your actual distance × mass_per_declared_unit × 0.062 ÷ 1000
+```
+
+**Example Calculation:**
+```
+Product gwp: 468 kgCO2e (for 1000 sf)
+mass_per_declared_unit: 357.43 kg
+category.default_distance: 1647.968 km
+
+Default transport impact: 1647.968 × 357.43 × 0.062 ÷ 1000 = 36.5 kgCO2e
+Actual distance: 500 km (purchased locally)
+Actual transport impact: 500 × 357.43 × 0.062 ÷ 1000 = 11.1 kgCO2e
+
+Adjusted GWP = 468 + (11.1 - 36.5) = 442.6 kgCO2e
+Savings: 25.4 kgCO2e (5.4% reduction)
+```
+
+**Note on Supply Chain Transportation:**
+The reported `gwp` value already includes transportation of raw materials and components to the manufacturing facility (A2 stage). The adjustment above only accounts for the final transportation from manufacturing to construction site (A4). Complex supply chains with extensive pre-manufacturing transportation are already reflected in the base `gwp` value.
+
+
+## Missing Impact Categories
+
+The following environmental impact metrics are frequently **not specified** in EPDs:
+- **ODP**: Ozone Depletion Potential
+- **AP**: Acidification Potential
+- **EP-FRESH**: Freshwater Eutrophication Potential
+- **EP-MARINE**: Marine Eutrophication Potential
+- **EP-TERRESTRIAL**: Terrestrial Eutrophication Potential
+- **POCP**: Photochemical Ozone Creation Potential
+
+<div id="start"></div>
+
+These missing fields indicate that many EPDs focus primarily on carbon emissions (GWP) rather than the full spectrum of environmental impacts.
+
+
+## Product Comparisons
 
 [See issue page on GitHub for additional details](https://github.com/ModelEarth/products/issues/1)
 
@@ -11,6 +140,8 @@ Click "OpenEPD json" in the upper right on a product page. Pull the same via the
 2. Update detail file output with product emission impacts for all countries and states/territories by updating our [Python Profile pull](https://github.com/ModelEarth/products/tree/main/pull)<!-- product-footprints.py -->. (Postman may be helpful for exploring API data structure.)
 
 3. Send resulting data to a fork of [ModelEarth/products-data](https://github.com/ModelEarth/products-data/) - View a recent pull in [Sirisha's fork](https://github.com/Sirishaupadhyayula/products-data).
+
+
 
 **Our Product Menu Frontend**
 
@@ -32,25 +163,28 @@ Click "OpenEPD json" in the upper right on a product page. Pull the same via the
 
 <!--[View as Markdown](/io/template/product/product-concrete.html)-->
 
+
+
 ## Getting Started
 
 TO CONTRIBUTE: Fork and run [webroot](https://github.com/ModelEarth/webroot) on your computer. Find an issue listed at [model.earth/projects](https://model.earth/projects) and post a reply to it with your work in progress and update your post when you send a PR with the update.
 
-US/GA/GA.yaml was too big: 97.3 MB
-Avoid pushing files larger then 25 MB.
+Avoid pushing files larger then 25 MB - breaks Cloudflare static hosting pull 
+All details in one state file resulted in a 97.3 MB file for the state of Georgia.
 
+<!-- probably done,  Sounds like Noor added to Python.
 TO DO: The token expires every 72 hours, so switch our ["Update Data" GitHub Action](https://github.com/ModelEarth/profile/actions) to use an email and password as the secrets which generate the token. (Look at how we use a myconfig file locally to get a new token and create a similar process in the GitHub Action.) Test in a fork and document steps for adding the secrets here. The URL for the API may need to be updated to https://buildingtransparency.org/api/epds
+-->
 
 DONE: product-footprints.py and update\_csv\_and\_yaml.py are very similar. Add "-DELETE" to the name of one (as long as we can use the other file two ways: locally and with the GitHub Action workflow). If retaining update_csv_and_yaml.py, change underscores to dashes.
 
 DONE: Send the cement product rows to their own files in new state folders in profile/cement/US. Save the cement listings within the same process that saves non-cement for states. (Avoid loading and process the CSV file containing all states.)
 
-DONE: Save emissions info within our individual YAML files. Carbon emissions (GWP) data is included in all EPD files. See [EMISSIONS_DATA_DOCUMENTATION.md](pull/EMISSIONS_DATA_DOCUMENTATION.md) for details on impact categories and resource use data.
+DONE: Save emissions info within our indvidual YAML files. Include all the impact (emmissions, etc) in each profile. Login to BuildingTransparency.org to view a [detail sample](https://buildingtransparency.org/ec3/epds/ec3mmgup).  See [EMISSIONS_DATA_DOCUMENTATION.md](pull/EMISSIONS_DATA_DOCUMENTATION.md) for details on impact categories and resource use data.
 
-TO DO: Change from using UUIDs in the yaml file names. Instead, let's use product names to create SEO-friendly file paths. Retain the subfolders that are product categories.
-
+<!--
 TO DO: We can also experimenting with [pulling directly to json](pull/get-json/). (Might not work.)
-
+-->
 
 ## Fetch Product Data
 
