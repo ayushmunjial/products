@@ -47,13 +47,14 @@ Industry benchmarks showing the distribution of emissions across all products in
 - **pct90_gwp**: 90th percentile - 90% of products fall below this level
 
 ### Statistical Values
+- **gwp_z**: Z-score showing how this product's GWP compares to category average
 - **best_practice**: Best-case emission scenario (lowest plausible GWP)
 - **conservative_estimate**: Worst-case emission scenario (highest plausible GWP)
 - **lowest_plausible_gwp**: Minimum feasible GWP value
 - **uncertainty_adjusted_gwp**: GWP adjusted for data uncertainty
 - **standard_deviation**: Measure of variability in the data
 - **uncertainty_factor**: Multiplier used to adjust for data uncertainty
-- **gwp_z**: Z-score showing how this product's GWP compares to category average
+- **Plant-level data**: `plant_or_group.carbon_intensity`
 
 ### Carbon Storage
 - **biogenic_embodied_carbon_z**: Z-score for biogenic carbon content
@@ -123,6 +124,12 @@ The following environmental impact metrics are frequently **not specified** in E
 - **EP-MARINE**: Marine Eutrophication Potential
 - **EP-TERRESTRIAL**: Terrestrial Eutrophication Potential
 - **POCP**: Photochemical Ozone Creation Potential
+
+
+The following resource indicators may later be available in the `resource_uses` field (currently empty in most EC3 API responses):
+- Primary energy use (renewable / non-renewable)
+- Water use indicators
+- Waste generation and output flows
 
 <div id="start"></div>
 
@@ -308,30 +315,6 @@ BuildingTransparency OpenEPD API
 
 Inside Postman, you can load the swagger.yaml file [exported from Swagger](https://stackoverflow.com/questions/48525546/how-to-export-swagger-json-or-yaml) which will import the schemas into Postman.
 
-## Impact Categories & Resource Use Data
-
-### Carbon Emissions (GWP)
-
-All EPD YAML files contain comprehensive carbon emissions data:
-- **Primary GWP fields**: `gwp`, `gwp_per_kg`, `best_practice`, `conservative_estimate`, etc.
-- **Category percentiles**: `category.pct10_gwp` through `category.pct90_gwp`
-- **Plant-level data**: `plant_or_group.carbon_intensity`
-
-### Other LCIA Impact Categories
-
-The following impact categories may be available in the `impacts` field (currently empty in EC3 API responses):
-- Ozone depletion potential
-- Acidification potential
-- Eutrophication potential
-- Photochemical ozone creation / smog formation
-- Abiotic resource depletion
-
-### Resource Use Indicators
-
-The following resource indicators may be available in the `resource_uses` field (currently empty in EC3 API responses):
-- Primary energy use (renewable / non-renewable)
-- Water use indicators
-- Waste generation and output flows
 
 ### API Usage
 
