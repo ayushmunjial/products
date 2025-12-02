@@ -3,3 +3,15 @@ env
 __pycache__
 output.log
 pull/US
+
+# Temporary analysis/test files
+pull/*_analysis_report.txt
+pull/openepd_sample_response.yaml
+pull/run_output.txt
+pull/test_output.log
+pull/api_comparison_results.json
+
+# Internal documentation (not for PR)
+pull/MONITORING_GUIDE.md
+pull/PR_DESCRIPTION.md
+pull/PR_STEPS.md

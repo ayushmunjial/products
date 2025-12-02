@@ -45,7 +45,7 @@ DONE: product-footprints.py and update\_csv\_and\_yaml.py are very similar. Add 
 
 DONE: Send the cement product rows to their own files in new state folders in profile/cement/US. Save the cement listings within the same process that saves non-cement for states. (Avoid loading and process the CSV file containing all states.)
 
-TO DO: Save emissions info within our indvidual YAML files. Include all the impact (emmissions, etc) in each profile. Login to BuildingTransparency.org to view a [detail sample](https://buildingtransparency.org/ec3/epds/ec3mmgup).  Update our notes with your findings and progress. You can use Postman or another app to explore the BuildingTransparency APIs.
+DONE: Save emissions info within our individual YAML files. Carbon emissions (GWP) data is included in all EPD files. See [EMISSIONS_DATA_DOCUMENTATION.md](pull/EMISSIONS_DATA_DOCUMENTATION.md) for details on impact categories and resource use data.
 
 TO DO: Change from using UUIDs in the yaml file names. Instead, let's use product names to create SEO-friendly file paths. Retain the subfolders that are product categories.
 
@@ -173,3 +173,46 @@ BuildingTransparency OpenEPD API
 
 
 Inside Postman, you can load the swagger.yaml file [exported from Swagger](https://stackoverflow.com/questions/48525546/how-to-export-swagger-json-or-yaml) which will import the schemas into Postman.
+
+## Impact Categories & Resource Use Data
+
+### Carbon Emissions (GWP)
+
+All EPD YAML files contain comprehensive carbon emissions data:
+- **Primary GWP fields**: `gwp`, `gwp_per_kg`, `best_practice`, `conservative_estimate`, etc.
+- **Category percentiles**: `category.pct10_gwp` through `category.pct90_gwp`
+- **Plant-level data**: `plant_or_group.carbon_intensity`
+
+### Other LCIA Impact Categories
+
+The following impact categories may be available in the `impacts` field (currently empty in EC3 API responses):
+- Ozone depletion potential
+- Acidification potential
+- Eutrophication potential
+- Photochemical ozone creation / smog formation
+- Abiotic resource depletion
+
+### Resource Use Indicators
+
+The following resource indicators may be available in the `resource_uses` field (currently empty in EC3 API responses):
+- Primary energy use (renewable / non-renewable)
+- Water use indicators
+- Waste generation and output flows
+
+### API Usage
+
+- **Primary API**: EC3 API (`https://buildingtransparency.org/api/epds`) - Used for all EPD data
+- **Secondary API**: openEPD API (`https://openepd.buildingtransparency.org/api/epds`) - Optional, can be used to supplement impact/resource data
+
+To enable openEPD API fetching for additional impact/resource data, set `ENABLE_OPENEPD_FETCH = True` in `product-footprints.py`.
+
+### Analysis & Testing Scripts
+
+Several scripts are available in `products/pull/` to analyze and test impact data:
+
+- **`analyze_emissions_data.py`**: Scans existing YAML files to document emissions fields and coverage
+- **`test_openepd_api.py`**: Tests openEPD API access and inspects response structure
+- **`compare_apis.py`**: Compares EC3 and openEPD APIs side-by-side
+- **`test_impact_data_integration.py`**: Tests merge functionality and YAML structure
+
+For detailed documentation, see [EMISSIONS_DATA_DOCUMENTATION.md](pull/EMISSIONS_DATA_DOCUMENTATION.md).
