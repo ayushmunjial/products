@@ -1,6 +1,7 @@
 import requests, json, csv, logging, yaml, time, os
 from functools import partial
 from myconfig import email, password
+from merge_impact_data import merge_impact_data, fetch_from_openepd_by_id, should_fetch_from_openepd
 
 # ✅ Pull for all US states and selected countries
 # All US states (50 states + DC)
@@ -20,7 +21,12 @@ countries = ['IN', 'GB', 'DE', 'NL', 'CA', 'MX', 'CN']
 states = us_states + countries
 
 epds_url = "https://buildingtransparency.org/api/epds"
+openepd_url = "https://openepd.buildingtransparency.org/api/epds"
 page_size = 250
+
+# Configuration: Enable/disable openEPD API fetching for additional impact/resource data
+# Set to True to fetch from openEPD API when EC3 data is missing impact/resource fields
+ENABLE_OPENEPD_FETCH = False  # Set to True to enable (may slow down processing)
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -54,7 +60,11 @@ def get_auth():
         print("Response body:" + str(response_auth.json()))
         return None
 
-def fetch_a_page(page: int, headers, state: str, total_pages: int = 0) -> list:
+def fetch_a_page(page: int, headers, state: str, total_pages: int = 0):
+    """
+    Fetch a single page of EPDs.
+    Returns: list of EPDs, or (list, new_auth) if token was refreshed
+    """
     logging.info(f'Fetching state: {state}, page: {page}')
     params = {"plant_geography": state, "page_size": page_size, "page_number": page}
     for attempt in range(5):
@@ -67,21 +77,41 @@ def fetch_a_page(page: int, headers, state: str, total_pages: int = 0) -> list:
                 if total_pages > 10 and page % 10 == 0:
                     print(f"  Progress: {page}/{total_pages} pages fetched for {state}", flush=True)
                 return data
+            elif response.status_code == 401:
+                # Token expired, refresh it
+                print(f"  Authentication expired on page {page} for {state}. Refreshing token...", flush=True)
+                new_auth = get_auth()
+                if new_auth:
+                    headers["Authorization"] = new_auth
+                    # Retry immediately with new token
+                    response = requests.get(epds_url, headers=headers, params=params, timeout=30)
+                    if response.status_code == 200:
+                        data = json.loads(response.text)
+                        if total_pages > 10 and page % 10 == 0:
+                            print(f"  Progress: {page}/{total_pages} pages fetched for {state}", flush=True)
+                        return data, new_auth  # Return tuple to signal refresh
+                log_error(401, "Failed to refresh token")
+                return [], headers.get("Authorization")
             elif response.status_code == 429:
                 log_error(response.status_code, "Rate limit exceeded. Retrying...")
                 time.sleep(2 ** attempt + 5)
             else:
-                log_error(response.status_code, str(response.json()))
-                return []
+                log_error(response.status_code, str(response.json()) if response.text else "No response body")
+                return [], headers.get("Authorization", "")
         except requests.exceptions.Timeout:
             log_error(0, f"Request timeout for {state}, page {page}. Retrying...")
             time.sleep(2 ** attempt + 5)
         except requests.exceptions.RequestException as e:
             log_error(0, f"Request error for {state}, page {page}: {str(e)}. Retrying...")
             time.sleep(2 ** attempt + 5)
-    return []
+    return [], headers.get("Authorization", "")
 
-def fetch_epds(state: str, authorization) -> list:
+def fetch_epds(state: str, authorization):
+    """
+    Fetch EPDs for a state/country.
+    Returns: (list of EPDs, updated_authorization) or (None, updated_authorization) on error
+    If authorization is refreshed, returns tuple so caller can update it.
+    """
     params = {"plant_geography": state, "page_size": page_size}
     headers = {"accept": "application/json", "Authorization": authorization}
     try:
@@ -89,25 +119,52 @@ def fetch_epds(state: str, authorization) -> list:
         response = requests.get(epds_url, headers=headers, params=params, timeout=30)
     except requests.exceptions.Timeout:
         print(f"Timeout fetching initial data for {state}. Skipping...", flush=True)
-        return []
+        return [], authorization
     except requests.exceptions.RequestException as e:
         print(f"Request error for {state}: {str(e)}. Skipping...", flush=True)
-        return []
+        return [], authorization
+    
+    # Handle 401 authentication errors - token may have expired
+    if response.status_code == 401:
+        print(f"Authentication expired for {state}. Attempting to refresh token...", flush=True)
+        new_auth = get_auth()
+        if new_auth:
+            # Update authorization for caller
+            authorization = new_auth
+            # Retry with new token
+            headers["Authorization"] = new_auth
+            response = requests.get(epds_url, headers=headers, params=params, timeout=30)
+            if response.status_code == 200:
+                print(f"Token refreshed successfully for {state}", flush=True)
+            else:
+                log_error(response.status_code, str(response.json()) if response.text else "No response body")
+                print(f"Still failed after token refresh for {state} (status: {response.status_code})", flush=True)
+                return None, authorization  # Return tuple to signal refresh
+        else:
+            print(f"Failed to refresh token for {state}. Skipping...", flush=True)
+            return None, authorization  # Return tuple to signal refresh
     
     if response.status_code != 200:
-        log_error(response.status_code, str(response.json()))
+        log_error(response.status_code, str(response.json()) if response.text else "No response body")
         print(f"No data found for {state} (status: {response.status_code})", flush=True)
-        return []
+        return [], authorization
     # Handle case where X-Total-Pages header might be missing
     total_pages = int(response.headers.get('X-Total-Pages', 0))
     if total_pages == 0:
         print(f"No data found for {state}", flush=True)
-        return []
+        return [], authorization
     print(f"Found {total_pages} pages for {state}", flush=True)
     full_response = []
     start_time = time.time()
     for page in range(1, total_pages + 1):
-        page_data = fetch_a_page(page, headers, state, total_pages)
+        page_result = fetch_a_page(page, headers, state, total_pages)
+        # fetch_a_page may return (data, new_auth) if token was refreshed
+        if isinstance(page_result, tuple):
+            page_data, authorization = page_result
+            headers["Authorization"] = authorization
+        else:
+            page_data = page_result
+        
         if page_data:
             full_response.extend(page_data)
         else:
@@ -118,7 +175,7 @@ def fetch_epds(state: str, authorization) -> list:
     elapsed_time = time.time() - start_time
     time.sleep(10)
     print(f"Fetched {len(full_response)} EPDs for {state} in {elapsed_time:.1f} seconds", flush=True)
-    return full_response
+    return full_response, authorization
 
 def remove_null_values(data):
     if isinstance(data, list):
@@ -144,17 +201,62 @@ def create_folder_path(state, zipcode, display_name):
     # Countries: IN, GB, DE, NL, CA, MX, CN
     return os.path.join(base_root, state, display_name)
 
-def save_json_to_yaml(state: str, json_data: list):
+def fetch_openepd_data_for_epd(epd, authorization):
+    """Fetch additional impact/resource data from openEPD API for a single EPD"""
+    if not ENABLE_OPENEPD_FETCH:
+        return None
+    
+    # Try multiple ID fields
+    epd_id = epd.get('id') or epd.get('material_id') or epd.get('open_xpd_uuid')
+    if not epd_id:
+        return None
+    
+    try:
+        openepd_epd = fetch_from_openepd_by_id(epd_id, authorization)
+        return openepd_epd
+    except Exception as e:
+        logging.warning(f"Failed to fetch openEPD data for {epd_id}: {str(e)}")
+        return None
+
+def save_json_to_yaml(state: str, json_data: list, authorization=None):
+    """
+    Save EPD data to YAML files, optionally merging with openEPD data.
+    
+    Args:
+        state: State/country code
+        json_data: List of EPD data from EC3 API
+        authorization: Optional Bearer token for openEPD API fetching
+    """
     filtered_data = remove_null_values(json_data)
+    openepd_fetched = 0
+    openepd_merged = 0
+    
     for epd in filtered_data:
         display_name = epd['category']['display_name'].replace(" ", "_")
         material_id = epd['material_id']
         zipcode = get_zipcode_from_epd(epd) or "unknown"
         folder_path = create_folder_path(state, zipcode, display_name)
         os.makedirs(folder_path, exist_ok=True)
+        
+        # Optionally fetch from openEPD API to merge impact/resource data
+        merged_epd = epd
+        if ENABLE_OPENEPD_FETCH and authorization and should_fetch_from_openepd(epd):
+            openepd_epd = fetch_openepd_data_for_epd(epd, authorization)
+            if openepd_epd:
+                openepd_fetched += 1
+                merged_epd = merge_impact_data(epd, openepd_epd)
+                if merged_epd.get('_data_sources', {}).get('merged_impacts') or \
+                   merged_epd.get('_data_sources', {}).get('merged_resources'):
+                    openepd_merged += 1
+                # Remove metadata before saving
+                merged_epd.pop('_data_sources', None)
+        
         file_path = os.path.join(folder_path, f"{material_id}.yaml")
         with open(file_path, "w") as yaml_file:
-            yaml.dump(epd, yaml_file, default_flow_style=False)
+            yaml.dump(merged_epd, yaml_file, default_flow_style=False)
+    
+    if ENABLE_OPENEPD_FETCH and openepd_fetched > 0:
+        print(f"  openEPD: Fetched {openepd_fetched} EPDs, merged {openepd_merged} with additional data", flush=True)
 
 def map_response(epd: dict) -> dict:
     return {
@@ -332,9 +434,11 @@ if __name__ == "__main__":
         print(f"Starting processing of {total_regions} regions...", flush=True)
         for idx, state in enumerate(states, 1):
             print(f"\n[{idx}/{total_regions}] Fetching and processing: {state}", flush=True)
-            results = fetch_epds(state, authorization)
+            result = fetch_epds(state, authorization)
+            # fetch_epds always returns (results, authorization) tuple
+            results, authorization = result
             if results:
-                save_json_to_yaml(state, results)
+                save_json_to_yaml(state, results, authorization)
                 # Create products CSV for IN with region mapping and tariff rates
                 write_products_csv(results, state)
                 mapped_results = [map_response(epd) for epd in results]
